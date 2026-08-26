@@ -35,21 +35,23 @@ const actionTypes = [
   { label: 'Admin Action', value: 'admin_action' },
 ]
 
+const ALL_ACTIONS = 'all'
+
 export function AuditFilterBar({ logs, onFilterChange }: AuditFilterBarProps) {
-  const [action, setAction] = useState<string>('')
+  const [action, setAction] = useState<string>(ALL_ACTIONS)
   const [startDate, setStartDate] = useState<string>('')
   const [endDate, setEndDate] = useState<string>('')
 
   const handleApplyFilters = () => {
     onFilterChange({
-      action: action || undefined,
+      action: action !== ALL_ACTIONS ? action : undefined,
       startDate: startDate || undefined,
       endDate: endDate || undefined,
     })
   }
 
   const handleClearFilters = () => {
-    setAction('')
+    setAction(ALL_ACTIONS)
     setStartDate('')
     setEndDate('')
     onFilterChange({})
@@ -85,7 +87,7 @@ export function AuditFilterBar({ logs, onFilterChange }: AuditFilterBarProps) {
               <SelectValue placeholder="All actions" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All actions</SelectItem>
+              <SelectItem value={ALL_ACTIONS}>All actions</SelectItem>
               {actionTypes.map((type) => (
                 <SelectItem key={type.value} value={type.value}>
                   {type.label}
