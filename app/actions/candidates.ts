@@ -9,6 +9,7 @@ import {
 } from '@/lib/validations/candidates'
 import { nominateCandidateSchema, photoUploadSchema } from '@/lib/validations/nomination'
 import { getCandidateDocuments } from '@/lib/supabase/queries'
+import { formatActionError } from '@/lib/utils'
 
 interface ActionResponse {
   success: boolean
@@ -65,7 +66,7 @@ export async function approveCandidate(input: ApproveCandidateInput): Promise<Ac
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'An unexpected error occurred',
+      error: formatActionError(error),
     }
   }
 }
@@ -102,7 +103,7 @@ export async function rejectCandidate(input: RejectCandidateInput): Promise<Acti
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'An unexpected error occurred',
+      error: formatActionError(error),
     }
   }
 }
@@ -207,7 +208,7 @@ export async function nominateCandidate(
       } catch (error) {
         return {
           success: false,
-          error: error instanceof Error ? error.message : 'Photo validation failed',
+          error: formatActionError(error, 'Photo validation failed'),
         }
       }
     }
@@ -242,7 +243,7 @@ export async function nominateCandidate(
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'An unexpected error occurred',
+      error: formatActionError(error),
     }
   }
 }
@@ -301,7 +302,7 @@ export async function toggleBookmark(
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'An unexpected error occurred',
+      error: formatActionError(error),
     }
   }
 }

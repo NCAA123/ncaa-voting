@@ -3,6 +3,23 @@ import { z } from 'zod'
 const MAX_FILE_SIZE = 500 * 1024 // 500KB
 const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 
+// Accepts a bare domain like "youtube.com/watch?v=x" as well as a full
+// "https://..." URL -- most people don't type the protocol, and z.string()
+// .url() rejects anything without one with no guidance to the user.
+function optionalUrlField(label: string) {
+  return z
+    .string()
+    .optional()
+    .or(z.literal(''))
+    .transform((val) => {
+      if (!val) return val
+      return /^https?:\/\//i.test(val) ? val : `https://${val}`
+    })
+    .refine((val) => !val || z.string().url().safeParse(val).success, {
+      message: `Enter a valid ${label} URL`,
+    })
+}
+
 export const nominateCandidateSchema = z.object({
   electionId: z.string().uuid('Invalid election ID'),
   positionId: z.string().uuid('Invalid position ID'),
@@ -11,11 +28,11 @@ export const nominateCandidateSchema = z.object({
   manifesto: z.string().min(100, 'Manifesto must be at least 100 characters').max(5000, 'Manifesto must be less than 5000 characters'),
   fideTitle: z.string().max(50, 'FIDE title is too long').optional().or(z.literal('')),
   achievements: z.string().max(2000, 'Achievements must be less than 2000 characters').optional().or(z.literal('')),
-  videoUrl: z.string().url('Invalid video URL').optional().or(z.literal('')),
+  videoUrl: optionalUrlField('video'),
   socialLinks: z.object({
-    twitter: z.string().url('Invalid Twitter URL').optional().or(z.literal('')),
-    linkedin: z.string().url('Invalid LinkedIn URL').optional().or(z.literal('')),
-    facebook: z.string().url('Invalid Facebook URL').optional().or(z.literal('')),
+    twitter: optionalUrlField('Twitter'),
+    linkedin: optionalUrlField('LinkedIn'),
+    facebook: optionalUrlField('Facebook'),
   }).optional(),
 })
 

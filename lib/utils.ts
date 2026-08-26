@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import { ZodError } from 'zod'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -65,4 +66,17 @@ export function fromWatDatetimeLocal(local: string): string {
   const [hour, minute] = timePart.split(':').map(Number)
   const utcMs = Date.UTC(year, month - 1, day, hour, minute) - 60 * 60 * 1000
   return new Date(utcMs).toISOString()
+}
+
+// A ZodError is an instance of Error, so a bare `catch (error) { return
+// error.message }` renders its raw JSON issue array in a toast instead of a
+// readable message -- this pulls out the first issue's message instead.
+export function formatActionError(error: unknown, fallback = 'An unexpected error occurred'): string {
+  if (error instanceof ZodError) {
+    return error.issues[0]?.message || fallback
+  }
+  if (error instanceof Error) {
+    return error.message
+  }
+  return fallback
 }

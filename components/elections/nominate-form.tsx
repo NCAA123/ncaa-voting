@@ -133,19 +133,21 @@ export function NominateForm({ electionId, positions }: NominateFormProps) {
       return
     }
 
-    if (!formData.bio.trim()) {
+    const bioLength = formData.bio.trim().length
+    if (bioLength < 50 || bioLength > 1000) {
       toast({
-        title: 'Missing field',
-        description: 'Bio is required',
+        title: 'Bio length',
+        description: `Bio must be 50-1000 characters (currently ${bioLength})`,
         variant: 'destructive',
       })
       return
     }
 
-    if (!formData.manifesto.trim()) {
+    const manifestoLength = formData.manifesto.trim().length
+    if (manifestoLength < 100 || manifestoLength > 5000) {
       toast({
-        title: 'Missing field',
-        description: 'Manifesto is required',
+        title: 'Manifesto length',
+        description: `Manifesto must be 100-5000 characters (currently ${manifestoLength})`,
         variant: 'destructive',
       })
       return
@@ -360,26 +362,32 @@ export function NominateForm({ electionId, positions }: NominateFormProps) {
         {/* Bio */}
         <div className="mb-6">
           <label className="text-sm font-medium block mb-2">
-            Bio * <span className="text-xs text-muted-foreground">(50-1000 characters)</span>
+            Bio * <span className={`text-xs ${formData.bio.trim().length > 0 && (formData.bio.trim().length < 50 || formData.bio.trim().length > 1000) ? 'text-destructive' : 'text-muted-foreground'}`}>
+              ({formData.bio.trim().length}/1000, min 50)
+            </span>
           </label>
           <Textarea
             value={formData.bio}
             onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
             placeholder="Write a brief biography..."
             className="min-h-24"
+            maxLength={1000}
           />
         </div>
 
         {/* Manifesto */}
         <div className="mb-6">
           <label className="text-sm font-medium block mb-2">
-            Manifesto * <span className="text-xs text-muted-foreground">(100-5000 characters)</span>
+            Manifesto * <span className={`text-xs ${formData.manifesto.trim().length > 0 && (formData.manifesto.trim().length < 100 || formData.manifesto.trim().length > 5000) ? 'text-destructive' : 'text-muted-foreground'}`}>
+              ({formData.manifesto.trim().length}/5000, min 100)
+            </span>
           </label>
           <Textarea
             value={formData.manifesto}
             onChange={(e) => setFormData({ ...formData, manifesto: e.target.value })}
             placeholder="Share your vision and plans..."
             className="min-h-32"
+            maxLength={5000}
           />
         </div>
 
@@ -410,9 +418,10 @@ export function NominateForm({ electionId, positions }: NominateFormProps) {
           <Input
             value={formData.videoUrl}
             onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
-            placeholder="https://youtube.com/watch?v=..."
-            type="url"
+            placeholder="youtube.com/watch?v=..."
+            type="text"
           />
+          <p className="text-xs text-muted-foreground mt-1">https:// is added automatically if you leave it out</p>
         </div>
       </Card>
 
@@ -431,8 +440,8 @@ export function NominateForm({ electionId, positions }: NominateFormProps) {
                   socialLinks: { ...formData.socialLinks, twitter: e.target.value },
                 })
               }
-              placeholder="https://twitter.com/..."
-              type="url"
+              placeholder="twitter.com/..."
+              type="text"
             />
           </div>
 
@@ -446,8 +455,8 @@ export function NominateForm({ electionId, positions }: NominateFormProps) {
                   socialLinks: { ...formData.socialLinks, linkedin: e.target.value },
                 })
               }
-              placeholder="https://linkedin.com/in/..."
-              type="url"
+              placeholder="linkedin.com/in/..."
+              type="text"
             />
           </div>
 
@@ -461,8 +470,8 @@ export function NominateForm({ electionId, positions }: NominateFormProps) {
                   socialLinks: { ...formData.socialLinks, facebook: e.target.value },
                 })
               }
-              placeholder="https://facebook.com/..."
-              type="url"
+              placeholder="facebook.com/..."
+              type="text"
             />
           </div>
         </div>
