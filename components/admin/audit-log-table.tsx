@@ -9,7 +9,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { formatDistanceToNow } from 'date-fns'
+import { formatWatDateTime } from '@/lib/utils'
 
 interface AuditLog {
   id: string
@@ -56,7 +56,7 @@ export function AuditLogTable({ logs, isLoading }: AuditLogTableProps) {
           {logs.map((log) => (
             <TableRow key={log.id} className="hover:bg-muted/50">
               <TableCell className="text-sm whitespace-nowrap">
-                {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
+                {formatWatDateTime(log.created_at)}
               </TableCell>
               <TableCell>
                 <Badge className={actionColors[log.action] || 'bg-gray-100 text-gray-800'}>

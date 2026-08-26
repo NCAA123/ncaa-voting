@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { format } from 'date-fns'
+import { formatWatDateTime } from '@/lib/utils'
 import {
   Table,
   TableBody,
@@ -122,10 +122,10 @@ export function ElectionsTable({ elections }: ElectionsTableProps) {
                   </Badge>
                 </TableCell>
                 <TableCell className="text-sm text-slate-600 dark:text-slate-400">
-                  {election.start_time ? format(new Date(election.start_time), 'MMM d, h:mm a') : '—'}
+                  {election.start_time ? formatWatDateTime(election.start_time) : '—'}
                 </TableCell>
                 <TableCell className="text-sm text-slate-600 dark:text-slate-400">
-                  {election.end_time ? format(new Date(election.end_time), 'MMM d, h:mm a') : '—'}
+                  {election.end_time ? formatWatDateTime(election.end_time) : '—'}
                 </TableCell>
                 <TableCell className="text-right text-sm font-medium">
                   {election.positions_count || 0}

@@ -5,8 +5,9 @@ import { useEffect, useState } from 'react'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { format, differenceInSeconds } from 'date-fns'
+import { differenceInSeconds } from 'date-fns'
 import { Clock, MapPin, Users } from 'lucide-react'
+import { formatWatDateTime } from '@/lib/utils'
 
 interface ElectionCardProps {
   id: string
@@ -124,7 +125,7 @@ export function ElectionCard({
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4" />
             <div>
-              <div>{format(new Date(startTime), 'MMM d, yyyy HH:mm')}</div>
+              <div>{formatWatDateTime(startTime)}</div>
               {status === 'active' && timeRemaining && (
                 <div className="text-xs font-semibold text-green-600">
                   {timeRemaining} remaining

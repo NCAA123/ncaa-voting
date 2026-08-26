@@ -19,6 +19,25 @@ export function formatDate(date: string | Date): string {
   })
 }
 
+// "Aug 27, 2:00 PM" style, WAT-pinned. Intl.DateTimeFormat with an explicit
+// timeZone renders identically on the server and in any browser, so this is
+// safe to call from a component that gets server-rendered then hydrated --
+// date-fns `format()` and bare `.toLocaleString()` have no timezone of their
+// own, so they render differently depending on where they execute and cause
+// a React hydration mismatch (error #418) the moment server and client are
+// in different zones.
+export function formatWatDateTime(date: string | Date): string {
+  return new Date(date).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: NIGERIA_TIMEZONE,
+  })
+}
+
 // Converts a stored UTC timestamp into the "YYYY-MM-DDTHH:mm" shape a
 // <input type="datetime-local"> needs, expressed in WAT wall-clock time.
 export function toWatDatetimeLocal(iso: string | null | undefined): string {

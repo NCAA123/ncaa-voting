@@ -30,6 +30,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -172,6 +173,9 @@ export function PositionsManager({ electionId, initialPositions }: PositionsMana
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Create New Position</DialogTitle>
+              <DialogDescription>
+                Add a position voters will choose candidates for, like President or Vice President.
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div>

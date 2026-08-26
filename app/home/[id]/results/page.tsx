@@ -3,6 +3,7 @@ import { PositionResultsChart } from '@/components/results/position-results-char
 import { TurnoutSummary } from '@/components/results/turnout-summary'
 import { getElectionResults, getTurnoutStats } from '@/lib/supabase/voting-queries'
 import { createClient } from '@/lib/supabase/server'
+import { formatDate } from '@/lib/utils'
 
 export default async function ResultsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: electionId } = await params
@@ -51,7 +52,7 @@ export default async function ResultsPage({ params }: { params: Promise<{ id: st
           <p className="text-gray-600">Election Results</p>
           {election.results_released_at && (
             <p className="text-sm text-gray-500 mt-2">
-              Released on {new Date(election.results_released_at).toLocaleDateString()}
+              Released on {formatDate(election.results_released_at)}
             </p>
           )}
         </div>

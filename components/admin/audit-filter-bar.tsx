@@ -12,6 +12,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Download } from 'lucide-react'
 import Papa from 'papaparse'
+import { formatWatDateTime } from '@/lib/utils'
 
 interface AuditLog {
   id: string
@@ -56,7 +57,7 @@ export function AuditFilterBar({ logs, onFilterChange }: AuditFilterBarProps) {
 
   const handleExportCSV = () => {
     const csvData = logs.map((log) => ({
-      Timestamp: new Date(log.created_at).toLocaleString(),
+      Timestamp: formatWatDateTime(log.created_at),
       Action: log.action,
       'Voter ID': log.displayVoterId,
       'IP Address': log.displayIpAddress,
