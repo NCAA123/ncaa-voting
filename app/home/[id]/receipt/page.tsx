@@ -1,7 +1,8 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ReceiptVerify } from '@/components/voting/receipt-verify'
-import { AlertCircle, Copy, CheckCircle2 } from 'lucide-react'
+import { CopyReceiptHashButton } from '@/components/voting/copy-receipt-hash-button'
+import { AlertCircle, CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
 import { formatDate } from '@/lib/utils'
 
@@ -82,15 +83,7 @@ export default async function ReceiptPage({ searchParams }: PageProps) {
                       <code className="flex-1 font-mono text-xs break-all">
                         {receipt.receipt_hash}
                       </code>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          navigator.clipboard.writeText(receipt.receipt_hash)
-                        }}
-                      >
-                        <Copy className="w-4 h-4" />
-                      </Button>
+                      <CopyReceiptHashButton hash={receipt.receipt_hash} />
                     </div>
                   </div>
 
@@ -129,16 +122,7 @@ export default async function ReceiptPage({ searchParams }: PageProps) {
         </div>
 
         <div className="lg:sticky lg:top-8 lg:self-start">
-          <ReceiptVerify
-            onReceipt={(receipt) => {
-              // Could navigate or update state here
-              window.history.pushState(
-                null,
-                '',
-                `?hash=${receipt.receipt_hash}`
-              )
-            }}
-          />
+          <ReceiptVerify />
         </div>
       </div>
     </div>

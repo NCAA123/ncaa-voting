@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -9,11 +10,8 @@ import { getReceiptByHash } from '@/app/actions/reads'
 import { CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 
-interface ReceiptVerifyProps {
-  onReceipt?: (receipt: any) => void
-}
-
-export function ReceiptVerify({ onReceipt }: ReceiptVerifyProps) {
+export function ReceiptVerify() {
+  const router = useRouter()
   const [hash, setHash] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [receipt, setReceipt] = useState<any | null>(null)
@@ -51,7 +49,10 @@ export function ReceiptVerify({ onReceipt }: ReceiptVerifyProps) {
     }
 
     setReceipt(result)
-    onReceipt?.(result)
+    // Reflects the found hash in the URL so this page is bookmarkable/
+    // shareable, without a full navigation (the component already shows the
+    // result itself via local state).
+    router.replace(`?hash=${result.receipt_hash}`, { scroll: false })
     toast({
       title: 'Success',
       description: 'Receipt verified successfully',
