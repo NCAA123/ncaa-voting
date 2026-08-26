@@ -33,8 +33,19 @@ export function CandidateVoteCard({
 
   return (
     <Card
-      className={`overflow-hidden transition-all ${
-        isSelected ? 'ring-2 ring-blue-500 border-blue-500' : 'hover:border-gray-300'
+      role="button"
+      tabIndex={0}
+      onClick={() => handleChange(!isSelected)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          handleChange(!isSelected)
+        }
+      }}
+      className={`cursor-pointer overflow-hidden transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
+        isSelected
+          ? 'ring-2 ring-blue-500 border-blue-500 bg-blue-50/50'
+          : 'hover:border-gray-300 hover:bg-gray-50'
       }`}
     >
       <div className="p-4">
@@ -67,8 +78,15 @@ export function CandidateVoteCard({
                 )}
               </div>
 
-              {/* Checkbox */}
-              <Checkbox checked={isSelected} onCheckedChange={handleChange} />
+              {/* Checkbox -- larger tap target, visual indicator; the whole
+                  card above already handles the click, so this just stops
+                  its own click from double-firing via bubbling. */}
+              <Checkbox
+                checked={isSelected}
+                onCheckedChange={handleChange}
+                onClick={(e) => e.stopPropagation()}
+                className="h-6 w-6"
+              />
             </div>
 
             {/* Zone and bio */}
