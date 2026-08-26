@@ -1,5 +1,29 @@
 import { createClient } from '@/lib/supabase/server'
 
+type SupabaseClient = Awaited<ReturnType<typeof createClient>>
+
+// candidates.user_id FKs to auth.users, not public.profiles -- no direct FK
+// exists between candidates and profiles, so PostgREST can't auto-embed
+// profiles(...) from a candidates query (it fails and returns []). Fetch
+// separately and merge instead. See lib/supabase/queries.ts's attachProfiles
+// for the same fix on the other candidate-listing queries.
+async function attachProfiles<T extends { user_id: string }>(
+  supabase: SupabaseClient,
+  rows: T[],
+  fields: string
+): Promise<(T & { profiles: any })[]> {
+  if (rows.length === 0) return []
+
+  const userIds = [...new Set(rows.map((r) => r.user_id))]
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select(fields)
+    .in('id', userIds)
+
+  const byId = new Map((profiles || []).map((p: any) => [p.id, p]))
+  return rows.map((row) => ({ ...row, profiles: byId.get(row.user_id) || null }))
+}
+
 export async function getElectionsForVoter(userId: string): Promise<any[]> {
   try {
     const supabase = await createClient()
@@ -114,8 +138,7 @@ export async function getCandidatesForPosition(positionId: string): Promise<any[
         photo_url,
         zone,
         fide_title,
-        positions(id, title),
-        profiles(id, first_name, last_name, avatar_url)
+        positions(id, title)
       `)
       .eq('position_id', positionId)
       .eq('status', 'approved')
@@ -126,7 +149,7 @@ export async function getCandidatesForPosition(positionId: string): Promise<any[
       return []
     }
 
-    return data || []
+    return attachProfiles(supabase, data || [], 'id, first_name, last_name, avatar_url')
   } catch (error) {
     console.error('Error in getCandidatesForPosition:', error)
     return []
@@ -279,7 +302,9 @@ export async function getElectionResults(electionId: string): Promise<any> {
   try {
     const supabase = await createClient()
 
-    // Fetch all votes with candidate and position details
+    // Fetch all votes with candidate and position details. candidates.user_id
+    // has no direct FK to profiles (see attachProfiles above), so profile
+    // names are fetched separately below rather than embedded here.
     const { data: votes, error: votesError } = await supabase
       .from('votes')
       .select(`
@@ -287,7 +312,7 @@ export async function getElectionResults(electionId: string): Promise<any> {
         position_id,
         candidate_id,
         positions(id, title, max_votes),
-        candidates(id, bio, photo_url, profiles(first_name, last_name, avatar_url))
+        candidates(id, bio, photo_url, user_id)
       `)
       .eq('election_id', electionId)
 
@@ -300,6 +325,13 @@ export async function getElectionResults(electionId: string): Promise<any> {
       return {}
     }
 
+    const candidateUserIds = [...new Set(votes.map((v) => v.candidates?.user_id).filter(Boolean))]
+    const { data: candidateProfiles } = await supabase
+      .from('profiles')
+      .select('id, first_name, last_name')
+      .in('id', candidateUserIds)
+    const profileById = new Map((candidateProfiles || []).map((p) => [p.id, p]))
+
     // Group votes by position
     const results: Record<string, any> = {}
 
@@ -307,8 +339,9 @@ export async function getElectionResults(electionId: string): Promise<any> {
       const positionId = vote.position_id
       const positionTitle = vote.positions?.title || 'Unknown'
       const candidateId = vote.candidate_id
-      const candidateName = vote.candidates?.profiles
-        ? `${vote.candidates.profiles.first_name} ${vote.candidates.profiles.last_name}`
+      const candidateProfile = vote.candidates?.user_id ? profileById.get(vote.candidates.user_id) : null
+      const candidateName = candidateProfile
+        ? `${candidateProfile.first_name} ${candidateProfile.last_name}`
         : 'Unknown'
 
       if (!results[positionId]) {

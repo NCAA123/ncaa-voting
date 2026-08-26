@@ -1,6 +1,31 @@
 import { createClient } from '@/lib/supabase/server'
 import { Election } from '@/types/elections'
 
+type SupabaseClient = Awaited<ReturnType<typeof createClient>>
+
+// candidates.user_id has a foreign key to auth.users, not to public.profiles
+// (both independently reference auth.users, with no direct FK between them)
+// -- PostgREST can only auto-embed a related table via .select('profiles(...)')
+// when there's a direct FK to walk, so `profiles(...)` embedded from a
+// candidates query fails outright and gets swallowed into an empty result.
+// Fetching profiles separately and merging here sidesteps that entirely.
+async function attachProfiles<T extends { user_id: string }>(
+  supabase: SupabaseClient,
+  rows: T[],
+  fields: string
+): Promise<(T & { profiles: any })[]> {
+  if (rows.length === 0) return []
+
+  const userIds = [...new Set(rows.map((r) => r.user_id))]
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select(fields)
+    .in('id', userIds)
+
+  const byId = new Map((profiles || []).map((p: any) => [p.id, p]))
+  return rows.map((row) => ({ ...row, profiles: byId.get(row.user_id) || null }))
+}
+
 export async function getElections(): Promise<Election[]> {
   try {
     const supabase = await createClient()
@@ -105,8 +130,7 @@ export async function getCandidates(
         fide_title,
         rejection_reason,
         created_at,
-        positions(id, title),
-        profiles(id, first_name, last_name, avatar_url)
+        positions(id, title)
       `)
       .eq('election_id', electionId)
 
@@ -121,7 +145,7 @@ export async function getCandidates(
       return []
     }
 
-    return data || []
+    return attachProfiles(supabase, data || [], 'id, first_name, last_name, avatar_url')
   } catch (error) {
     console.error('Error in getCandidates:', error)
     return []
@@ -168,8 +192,7 @@ export async function getCandidateById(candidateId: string, userId?: string): Pr
         zone,
         fide_title,
         created_at,
-        positions(id, title),
-        profiles(id, first_name, last_name, avatar_url)
+        positions(id, title)
       `)
       .eq('id', candidateId)
       .eq('status', 'approved')
@@ -193,8 +216,10 @@ export async function getCandidateById(candidateId: string, userId?: string): Pr
       isBookmarked = !!bookmark
     }
 
+    const [withProfile] = await attachProfiles(supabase, [candidate], 'id, first_name, last_name, avatar_url')
+
     return {
-      ...candidate,
+      ...withProfile,
       isBookmarked,
     }
   } catch (error) {
@@ -214,14 +239,14 @@ export async function getComparisonCandidates(candidateIds: string[]): Promise<a
       .from('candidates')
       .select(`
         id,
+        user_id,
         bio,
         achievements,
         photo_url,
         zone,
         fide_title,
         status,
-        positions(id, title),
-        profiles(id, first_name, last_name)
+        positions(id, title)
       `)
       .in('id', candidateIds)
       .eq('status', 'approved')
@@ -232,7 +257,7 @@ export async function getComparisonCandidates(candidateIds: string[]): Promise<a
       return []
     }
 
-    return data || []
+    return attachProfiles(supabase, data || [], 'id, first_name, last_name')
   } catch (error) {
     console.error('Error in getComparisonCandidates:', error)
     return []
