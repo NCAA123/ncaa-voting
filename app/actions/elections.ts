@@ -1,8 +1,8 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { createElectionSchema } from '@/lib/validations/election'
-import type { CreateElectionInput } from '@/lib/validations/election'
+import { createElectionSchema, updateElectionSchema } from '@/lib/validations/election'
+import type { CreateElectionInput, UpdateElectionInput } from '@/lib/validations/election'
 
 interface CreateElectionResponse {
   success: boolean
@@ -11,6 +11,55 @@ interface CreateElectionResponse {
     title: string
   }
   error?: string
+}
+
+export async function updateElection(
+  input: UpdateElectionInput
+): Promise<CreateElectionResponse> {
+  try {
+    const validatedData = updateElectionSchema.parse(input)
+    const supabase = await createClient()
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return { success: false, error: 'Unauthorized: User not authenticated' }
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (profileError || !profile || (profile.role !== 'admin' && profile.role !== 'superadmin')) {
+      return { success: false, error: 'Unauthorized: Only admins can edit elections' }
+    }
+
+    const { id, ...updateData } = validatedData
+
+    // RLS's elections_update policy already restricts this to the
+    // election's own creator or a superadmin.
+    const { data: election, error: updateError } = await supabase
+      .from('elections')
+      .update(updateData)
+      .eq('id', id)
+      .select('id, title')
+      .single()
+
+    if (updateError) {
+      return { success: false, error: `Database error: ${updateError.message}` }
+    }
+
+    return {
+      success: true,
+      data: { id: election.id, title: election.title },
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'An unexpected error occurred',
+    }
+  }
 }
 
 export async function createElection(

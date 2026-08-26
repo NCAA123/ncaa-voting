@@ -18,8 +18,13 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
-import { createElection } from '@/app/actions/elections'
-import { createElectionSchema, type CreateElectionInput } from '@/lib/validations/election'
+import { createElection, updateElection } from '@/app/actions/elections'
+import {
+  createElectionSchema,
+  updateElectionSchema,
+  type CreateElectionInput,
+  type UpdateElectionInput,
+} from '@/lib/validations/election'
 import { AlertCircle, Loader2 } from 'lucide-react'
 
 const ELECTION_TYPES = [
@@ -32,14 +37,22 @@ const ELECTION_TYPES = [
   { value: 'poll', label: 'Poll' },
 ]
 
+// These must match real values on profiles: zone (North/South/East/West/
+// Central/FCT) and arbiter_level (National/International/FIDE/Candidate).
+// eligible_voter_categories is matched directly against those columns
+// (see checkVotingEligibility / getElectionsForVoter) -- anything else
+// silently makes the election invisible to every member.
 const VOTER_CATEGORIES = [
-  { id: 'tier-1', label: 'Premium Members' },
-  { id: 'tier-2', label: 'Standard Members' },
-  { id: 'tier-3', label: 'Associate Members' },
-  { id: 'zone-north', label: 'Northern Zone' },
-  { id: 'zone-south', label: 'Southern Zone' },
-  { id: 'zone-east', label: 'Eastern Zone' },
-  { id: 'zone-west', label: 'Western Zone' },
+  { id: 'North', label: 'North Zone' },
+  { id: 'South', label: 'South Zone' },
+  { id: 'East', label: 'East Zone' },
+  { id: 'West', label: 'West Zone' },
+  { id: 'Central', label: 'Central Zone' },
+  { id: 'FCT', label: 'FCT' },
+  { id: 'National', label: 'National Arbiters' },
+  { id: 'International', label: 'International Arbiters' },
+  { id: 'FIDE', label: 'FIDE Arbiters' },
+  { id: 'Candidate', label: 'Candidate Arbiters' },
 ]
 
 const STATUS_OPTIONS = [
@@ -50,10 +63,19 @@ const STATUS_OPTIONS = [
   { value: 'archived', label: 'Archived' },
 ]
 
-export function CreateElectionForm() {
+interface ElectionFormProps {
+  mode?: 'create' | 'edit'
+  electionId?: string
+  defaultValues?: Partial<CreateElectionInput>
+}
+
+export function CreateElectionForm({ mode = 'create', electionId, defaultValues }: ElectionFormProps) {
   const [isLoading, setIsLoading] = useState(false)
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(
+    defaultValues?.eligible_voter_categories || []
+  )
   const router = useRouter()
+  const isEdit = mode === 'edit'
 
   const {
     register,
@@ -62,21 +84,19 @@ export function CreateElectionForm() {
     setValue,
     formState: { errors },
   } = useForm<CreateElectionInput>({
-    resolver: zodResolver(createElectionSchema),
+    resolver: zodResolver(isEdit ? updateElectionSchema : createElectionSchema) as any,
     defaultValues: {
       status: 'draft',
       eligible_voter_categories: [],
+      ...defaultValues,
     },
   })
-
-  const type = watch('type')
-  const status = watch('status')
 
   const handleCategoryToggle = (categoryId: string) => {
     const updated = selectedCategories.includes(categoryId)
       ? selectedCategories.filter((id) => id !== categoryId)
       : [...selectedCategories, categoryId]
-    
+
     setSelectedCategories(updated)
     setValue('eligible_voter_categories', updated)
   }
@@ -84,17 +104,19 @@ export function CreateElectionForm() {
   const onSubmit = async (data: CreateElectionInput) => {
     setIsLoading(true)
     try {
-      const result = await createElection(data)
-      
+      const result = isEdit
+        ? await updateElection({ ...(data as UpdateElectionInput), id: electionId! })
+        : await createElection(data)
+
       if (result.success && result.data) {
-        toast.success(`Election "${result.data.title}" created successfully`)
+        toast.success(`Election "${result.data.title}" ${isEdit ? 'updated' : 'created'} successfully`)
         router.push(`/admin/elections/${result.data.id}`)
       } else {
-        toast.error(result.error || 'Failed to create election')
+        toast.error(result.error || `Failed to ${isEdit ? 'update' : 'create'} election`)
       }
     } catch (error) {
       toast.error('An unexpected error occurred')
-      console.error('[v0] Error creating election:', error)
+      console.error('[v0] Error saving election:', error)
     } finally {
       setIsLoading(false)
     }
@@ -103,9 +125,13 @@ export function CreateElectionForm() {
   return (
     <div className="mx-auto max-w-2xl py-8 px-4">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground">Create New Election</h1>
+        <h1 className="text-3xl font-bold text-foreground">
+          {isEdit ? 'Edit Election' : 'Create New Election'}
+        </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Set up a new election with positions, candidates, and voter categories.
+          {isEdit
+            ? 'Update this election\'s details, voter categories, or status.'
+            : 'Set up a new election with positions, candidates, and voter categories.'}
         </p>
       </div>
 
@@ -132,7 +158,10 @@ export function CreateElectionForm() {
           {/* Type */}
           <div className="space-y-2">
             <Label htmlFor="type">Election Type *</Label>
-            <Select defaultValue="" onValueChange={(value) => setValue('type', value as any)}>
+            <Select
+              defaultValue={defaultValues?.type || ''}
+              onValueChange={(value) => setValue('type', value as any)}
+            >
               <SelectTrigger id="type" className={errors.type ? 'border-red-500' : ''}>
                 <SelectValue placeholder="Select election type" />
               </SelectTrigger>
@@ -210,6 +239,9 @@ export function CreateElectionForm() {
           {/* Eligible Voter Categories */}
           <div className="space-y-3">
             <Label>Eligible Voter Categories *</Label>
+            <p className="text-xs text-muted-foreground">
+              Select zones and/or arbiter levels. A member is eligible if they match any one selected category.
+            </p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {VOTER_CATEGORIES.map((category) => (
                 <div key={category.id} className="flex items-center gap-2">
@@ -238,8 +270,11 @@ export function CreateElectionForm() {
 
           {/* Status */}
           <div className="space-y-2">
-            <Label htmlFor="status">Initial Status</Label>
-            <Select defaultValue="draft" onValueChange={(value) => setValue('status', value as any)}>
+            <Label htmlFor="status">{isEdit ? 'Status' : 'Initial Status'}</Label>
+            <Select
+              defaultValue={defaultValues?.status || 'draft'}
+              onValueChange={(value) => setValue('status', value as any)}
+            >
               <SelectTrigger id="status">
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
@@ -269,7 +304,7 @@ export function CreateElectionForm() {
               className="gap-2"
             >
               {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isLoading ? 'Creating...' : 'Create Election'}
+              {isLoading ? (isEdit ? 'Saving...' : 'Creating...') : isEdit ? 'Save Changes' : 'Create Election'}
             </Button>
           </div>
         </form>

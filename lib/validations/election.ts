@@ -1,12 +1,12 @@
 import { z } from 'zod'
 import { ElectionType, ElectionStatus } from '@/types/elections'
 
-export const createElectionSchema = z.object({
+const electionFieldsShape = {
   title: z
     .string()
     .min(3, 'Title must be at least 3 characters')
     .max(255, 'Title must not exceed 255 characters'),
-  type: z.enum(['general', 'zonal', 'committee', 'referendum', 'poll'], {
+  type: z.enum(['general', 'special', 'runoff', 'zonal', 'committee', 'referendum', 'poll'], {
     errorMap: () => ({ message: 'Please select a valid election type' }),
   }),
   description: z
@@ -33,7 +33,9 @@ export const createElectionSchema = z.object({
       errorMap: () => ({ message: 'Please select a valid status' }),
     })
     .default('draft'),
-}).refine(
+}
+
+export const createElectionSchema = z.object(electionFieldsShape).refine(
   (data) => new Date(data.end_time) > new Date(data.start_time),
   {
     message: 'End time must be after start time',
@@ -47,4 +49,17 @@ export const createElectionSchema = z.object({
   }
 )
 
+// Editing an existing election shouldn't require start_time to still be in
+// the future -- you may be editing an election that's already active/closed.
+export const updateElectionSchema = z.object(electionFieldsShape).extend({
+  id: z.string().uuid('Invalid election ID'),
+}).refine(
+  (data) => new Date(data.end_time) > new Date(data.start_time),
+  {
+    message: 'End time must be after start time',
+    path: ['end_time'],
+  }
+)
+
 export type CreateElectionInput = z.infer<typeof createElectionSchema>
+export type UpdateElectionInput = z.infer<typeof updateElectionSchema>
