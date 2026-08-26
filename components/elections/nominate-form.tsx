@@ -196,6 +196,10 @@ export function NominateForm({ electionId, positions }: NominateFormProps) {
         description: 'Candidate nomination submitted successfully',
       })
 
+      // The candidates page may already be cached client-side from before
+      // this nomination (e.g. the admin came from there) -- without
+      // refresh(), push() alone can serve that stale, pre-nomination list.
+      router.refresh()
       router.push(`/admin/elections/${electionId}/candidates`)
     } catch (error) {
       toast({

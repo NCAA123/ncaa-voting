@@ -121,6 +121,7 @@ export function CreateElectionForm({ mode = 'create', electionId, defaultValues 
 
       if (result.success && result.data) {
         toast.success(`Election "${result.data.title}" ${isEdit ? 'updated' : 'created'} successfully`)
+        router.refresh()
         router.push(`/admin/elections/${result.data.id}`)
       } else {
         toast.error(result.error || `Failed to ${isEdit ? 'update' : 'create'} election`)

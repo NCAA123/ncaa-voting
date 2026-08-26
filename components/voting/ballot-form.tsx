@@ -130,8 +130,11 @@ export function BallotForm({ electionId, positions }: BallotFormProps) {
         description: `Your vote has been recorded. Receipt ID: ${result.data?.receiptId}`,
       })
 
-      // Redirect to election details or results page
-      router.push(`/dashboard/elections/${electionId}`)
+      // /dashboard/elections/[id] doesn't exist as a page -- the real
+      // post-vote destination is the receipt page, which reads the hash
+      // straight from the URL.
+      router.refresh()
+      router.push(`/home/${electionId}/receipt?hash=${result.receiptHash}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
