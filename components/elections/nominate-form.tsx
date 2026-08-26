@@ -1,14 +1,14 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Upload, X, Loader2 } from 'lucide-react'
-import { nominateCandidate } from '@/app/actions/candidates'
+import { Upload, X, Loader2, Search, UserCircle } from 'lucide-react'
+import { nominateCandidate, searchMembers } from '@/app/actions/candidates'
 import { useToast } from '@/hooks/use-toast'
 
 interface Position {
@@ -16,17 +16,22 @@ interface Position {
   title: string
 }
 
+interface Member {
+  id: string
+  first_name: string
+  last_name: string
+  email: string
+  zone: string | null
+  arbiter_level: string | null
+  avatar_url: string | null
+}
+
 interface NominateFormProps {
   electionId: string
   positions: Position[]
-  userProfile: {
-    first_name: string
-    last_name: string
-    zone: string
-  }
 }
 
-export function NominateForm({ electionId, positions, userProfile }: NominateFormProps) {
+export function NominateForm({ electionId, positions }: NominateFormProps) {
   const router = useRouter()
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -34,6 +39,34 @@ export function NominateForm({ electionId, positions, userProfile }: NominateFor
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [photoFile, setPhotoFile] = useState<File | null>(null)
+
+  // Candidate search/select
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<Member[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [selectedMember, setSelectedMember] = useState<Member | null>(null)
+
+  useEffect(() => {
+    if (selectedMember || searchQuery.trim().length < 2) {
+      setSearchResults([])
+      return
+    }
+
+    let cancelled = false
+    setIsSearching(true)
+    const timeout = setTimeout(async () => {
+      const results = await searchMembers(searchQuery)
+      if (!cancelled) {
+        setSearchResults(results)
+        setIsSearching(false)
+      }
+    }, 300)
+
+    return () => {
+      cancelled = true
+      clearTimeout(timeout)
+    }
+  }, [searchQuery, selectedMember])
 
   const [formData, setFormData] = useState({
     positionId: '',
@@ -82,6 +115,15 @@ export function NominateForm({ electionId, positions, userProfile }: NominateFor
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    if (!selectedMember) {
+      toast({
+        title: 'Missing field',
+        description: 'Search for and select the member to nominate',
+        variant: 'destructive',
+      })
+      return
+    }
+
     if (!formData.positionId) {
       toast({
         title: 'Missing field',
@@ -120,6 +162,7 @@ export function NominateForm({ electionId, positions, userProfile }: NominateFor
       const result = await nominateCandidate(submitFormData, {
         electionId,
         positionId: formData.positionId,
+        candidateUserId: selectedMember.id,
         bio: formData.bio,
         manifesto: formData.manifesto,
         fideTitle: formData.fideTitle,
@@ -168,16 +211,89 @@ export function NominateForm({ electionId, positions, userProfile }: NominateFor
       <Card className="p-6">
         <h2 className="text-lg font-semibold mb-4">Candidate Information</h2>
 
-        {/* Pre-filled Profile Info */}
-        <div className="grid grid-cols-2 gap-4 mb-6 p-4 bg-muted rounded-lg">
-          <div>
-            <label className="text-sm font-medium">Name</label>
-            <p className="text-foreground">{`${userProfile.first_name} ${userProfile.last_name}`}</p>
-          </div>
-          <div>
-            <label className="text-sm font-medium">Zone</label>
-            <p className="text-foreground">{userProfile.zone}</p>
-          </div>
+        {/* Candidate search/select */}
+        <div className="mb-6">
+          <label className="text-sm font-medium block mb-2">Member to Nominate *</label>
+          {selectedMember ? (
+            <div className="flex items-center justify-between gap-4 rounded-lg border bg-muted p-4">
+              <div className="flex items-center gap-3">
+                {selectedMember.avatar_url ? (
+                  <img
+                    src={selectedMember.avatar_url}
+                    alt=""
+                    className="h-10 w-10 rounded-full object-cover"
+                  />
+                ) : (
+                  <UserCircle className="h-10 w-10 text-muted-foreground" />
+                )}
+                <div>
+                  <p className="font-medium text-foreground">
+                    {selectedMember.first_name} {selectedMember.last_name}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {selectedMember.email}
+                    {selectedMember.zone ? ` · ${selectedMember.zone} Zone` : ''}
+                  </p>
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSelectedMember(null)
+                  setSearchQuery('')
+                }}
+              >
+                Change
+              </Button>
+            </div>
+          ) : (
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by name or email..."
+                className="pl-9"
+              />
+              {(isSearching || searchResults.length > 0) && (
+                <div className="absolute z-10 mt-1 w-full rounded-lg border bg-popover shadow-md">
+                  {isSearching ? (
+                    <div className="p-3 text-sm text-muted-foreground">Searching...</div>
+                  ) : (
+                    searchResults.map((member) => (
+                      <button
+                        key={member.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedMember(member)
+                          setSearchResults([])
+                        }}
+                        className="flex w-full items-center gap-3 p-3 text-left hover:bg-muted"
+                      >
+                        {member.avatar_url ? (
+                          <img
+                            src={member.avatar_url}
+                            alt=""
+                            className="h-8 w-8 rounded-full object-cover"
+                          />
+                        ) : (
+                          <UserCircle className="h-8 w-8 text-muted-foreground" />
+                        )}
+                        <div>
+                          <p className="text-sm font-medium">
+                            {member.first_name} {member.last_name}
+                          </p>
+                          <p className="text-xs text-muted-foreground">{member.email}</p>
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Photo Upload */}

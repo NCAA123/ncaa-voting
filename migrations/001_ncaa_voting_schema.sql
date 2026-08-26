@@ -312,7 +312,14 @@ CREATE POLICY candidates_read ON candidates
 
 CREATE POLICY candidates_insert ON candidates
   FOR INSERT WITH CHECK (
-    auth.uid() = user_id
+    (
+      auth.uid() = user_id
+      OR EXISTS (
+        SELECT 1 FROM profiles
+        WHERE profiles.id = auth.uid()
+        AND profiles.role IN ('admin', 'superadmin')
+      )
+    )
     AND EXISTS (
       SELECT 1 FROM elections e
       WHERE e.id = candidates.election_id

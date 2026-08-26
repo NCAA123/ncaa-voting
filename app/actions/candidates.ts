@@ -107,11 +107,36 @@ export async function rejectCandidate(input: RejectCandidateInput): Promise<Acti
   }
 }
 
+// Search members by name or email to nominate as a candidate. profiles is
+// readable by any authenticated user (profiles_select_all_authenticated),
+// so this doesn't need an admin check of its own -- the nominate page it's
+// used from is already behind the /admin/** middleware gate.
+export async function searchMembers(query: string) {
+  if (!query || query.trim().length < 2) return []
+
+  const supabase = await createClient()
+  const term = query.trim()
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, first_name, last_name, email, zone, arbiter_level, avatar_url')
+    .or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%,email.ilike.%${term}%`)
+    .limit(10)
+
+  if (error) {
+    console.error('Error searching members:', error)
+    return []
+  }
+
+  return data || []
+}
+
 export async function nominateCandidate(
   formData: FormData,
   input: {
     electionId: string
     positionId: string
+    candidateUserId: string
     bio: string
     manifesto: string
     fideTitle?: string
@@ -129,21 +154,27 @@ export async function nominateCandidate(
     const validatedInput = nominateCandidateSchema.parse(input)
     const supabase = await createClient()
 
-    // Get current user
+    // Get current user (the admin doing the nominating)
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
       return { success: false, error: 'Unauthorized: User not authenticated' }
     }
 
-    // Get user profile (name and zone pre-filled)
+    const isAdmin = await checkAdminPermissions(supabase, user.id)
+    if (!isAdmin) {
+      return { success: false, error: 'Only admins can nominate candidates' }
+    }
+
+    // Get the nominated member's own profile (name/zone belong to them,
+    // not to the admin submitting the nomination)
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('first_name, last_name, zone')
-      .eq('id', user.id)
+      .eq('id', validatedInput.candidateUserId)
       .single()
 
     if (profileError || !profile) {
-      return { success: false, error: 'Failed to fetch user profile' }
+      return { success: false, error: 'Selected member not found' }
     }
 
     // Get photo file from FormData
@@ -153,10 +184,10 @@ export async function nominateCandidate(
     if (photoFile) {
       try {
         const photoValidation = photoUploadSchema.parse({ file: photoFile })
-        
+
         // Upload to Supabase Storage
         const fileExt = photoFile.name.split('.').pop()
-        const fileName = `${user.id}-${Date.now()}.${fileExt}`
+        const fileName = `${validatedInput.candidateUserId}-${Date.now()}.${fileExt}`
         const storagePath = `${input.electionId}/${fileName}`
 
         const { error: uploadError } = await supabase.storage
@@ -185,7 +216,7 @@ export async function nominateCandidate(
     const { data: candidate, error: insertError } = await supabase
       .from('candidates')
       .insert({
-        user_id: user.id,
+        user_id: validatedInput.candidateUserId,
         election_id: input.electionId,
         position_id: input.positionId,
         bio: validatedInput.bio,
@@ -204,9 +235,9 @@ export async function nominateCandidate(
       return { success: false, error: `Failed to create candidate: ${insertError.message}` }
     }
 
-    return { 
-      success: true, 
-      candidateId: candidate.id 
+    return {
+      success: true,
+      candidateId: candidate.id
     }
   } catch (error) {
     return {

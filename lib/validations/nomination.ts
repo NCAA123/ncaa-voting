@@ -6,6 +6,7 @@ const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 export const nominateCandidateSchema = z.object({
   electionId: z.string().uuid('Invalid election ID'),
   positionId: z.string().uuid('Invalid position ID'),
+  candidateUserId: z.string().uuid('Select a member to nominate'),
   bio: z.string().min(50, 'Bio must be at least 50 characters').max(1000, 'Bio must be less than 1000 characters'),
   manifesto: z.string().min(100, 'Manifesto must be at least 100 characters').max(5000, 'Manifesto must be less than 5000 characters'),
   fideTitle: z.string().max(50, 'FIDE title is too long').optional().or(z.literal('')),
