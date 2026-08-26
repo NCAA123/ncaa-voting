@@ -1,15 +1,7 @@
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { CreateElectionForm } from '@/components/elections/create-election-form'
-
-// datetime-local inputs need "YYYY-MM-DDTHH:mm" in local time, not an ISO
-// string with seconds/timezone.
-function toDatetimeLocal(iso: string | null): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
+import { toWatDatetimeLocal } from '@/lib/utils'
 
 export default async function EditElectionPage({
   params,
@@ -37,8 +29,8 @@ export default async function EditElectionPage({
         title: election.title,
         type: election.type,
         description: election.description || '',
-        start_time: toDatetimeLocal(election.start_time),
-        end_time: toDatetimeLocal(election.end_time),
+        start_time: toWatDatetimeLocal(election.start_time),
+        end_time: toWatDatetimeLocal(election.end_time),
         eligible_voter_categories: election.eligible_voter_categories || [],
         status: election.status,
       }}

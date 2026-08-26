@@ -6,7 +6,7 @@ import { releaseResults } from '@/app/actions/voting'
 import { closeElection } from '@/app/actions/elections'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { Users, Monitor, BarChart3, Lock } from 'lucide-react'
+import { Users, Monitor, BarChart3, Lock, ListChecks, UserPlus, Pencil, FileClock } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
 interface QuickActionsBarProps {
@@ -86,6 +86,27 @@ export function QuickActionsBar({
 
   return (
     <div className="flex flex-wrap gap-3">
+      <Link href={`/admin/elections/${electionId}/edit`}>
+        <Button variant="outline" size="sm">
+          <Pencil className="h-4 w-4 mr-2" />
+          Edit Election
+        </Button>
+      </Link>
+
+      <Link href={`/admin/elections/${electionId}/positions`}>
+        <Button variant="outline" size="sm">
+          <ListChecks className="h-4 w-4 mr-2" />
+          Manage Positions
+        </Button>
+      </Link>
+
+      <Link href={`/admin/elections/${electionId}/nominate`}>
+        <Button variant="outline" size="sm">
+          <UserPlus className="h-4 w-4 mr-2" />
+          Nominate Candidate
+        </Button>
+      </Link>
+
       <Link href={`/admin/elections/${electionId}/candidates`}>
         <Button variant="outline" size="sm">
           <Users className="h-4 w-4 mr-2" />
@@ -97,6 +118,13 @@ export function QuickActionsBar({
         <Button variant="outline" size="sm">
           <Monitor className="h-4 w-4 mr-2" />
           Monitor Live
+        </Button>
+      </Link>
+
+      <Link href={`/admin/elections/${electionId}/audit`}>
+        <Button variant="outline" size="sm">
+          <FileClock className="h-4 w-4 mr-2" />
+          Audit Log
         </Button>
       </Link>
 

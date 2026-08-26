@@ -21,11 +21,12 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { createElection, updateElection } from '@/app/actions/elections'
 import {
   createElectionSchema,
-  updateElectionSchema,
+  editElectionFieldsSchema,
   type CreateElectionInput,
   type UpdateElectionInput,
 } from '@/lib/validations/election'
 import { AlertCircle, Loader2 } from 'lucide-react'
+import { fromWatDatetimeLocal } from '@/lib/utils'
 
 const ELECTION_TYPES = [
   { value: 'general', label: 'General Election' },
@@ -84,7 +85,7 @@ export function CreateElectionForm({ mode = 'create', electionId, defaultValues 
     setValue,
     formState: { errors },
   } = useForm<CreateElectionInput>({
-    resolver: zodResolver(isEdit ? updateElectionSchema : createElectionSchema) as any,
+    resolver: zodResolver(isEdit ? editElectionFieldsSchema : createElectionSchema) as any,
     defaultValues: {
       status: 'draft',
       eligible_voter_categories: [],
@@ -104,9 +105,19 @@ export function CreateElectionForm({ mode = 'create', electionId, defaultValues 
   const onSubmit = async (data: CreateElectionInput) => {
     setIsLoading(true)
     try {
+      // The datetime-local inputs hold WAT wall-clock time (e.g. "2:00 PM"
+      // meant as Lagos time) -- convert to a real UTC instant before this
+      // goes anywhere near storage, instead of letting Postgres assume the
+      // naive string is already UTC.
+      const payload = {
+        ...data,
+        start_time: fromWatDatetimeLocal(data.start_time),
+        end_time: fromWatDatetimeLocal(data.end_time),
+      }
+
       const result = isEdit
-        ? await updateElection({ ...(data as UpdateElectionInput), id: electionId! })
-        : await createElection(data)
+        ? await updateElection({ ...(payload as UpdateElectionInput), id: electionId! })
+        : await createElection(payload)
 
       if (result.success && result.data) {
         toast.success(`Election "${result.data.title}" ${isEdit ? 'updated' : 'created'} successfully`)

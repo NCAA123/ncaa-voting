@@ -51,7 +51,21 @@ export const createElectionSchema = z.object(electionFieldsShape).refine(
 
 // Editing an existing election shouldn't require start_time to still be in
 // the future -- you may be editing an election that's already active/closed.
-export const updateElectionSchema = z.object(electionFieldsShape).extend({
+// No `id` here: this is what the edit form itself validates against, and
+// the form never has an id field bound to it -- that's supplied separately
+// by the page/action, not typed into the form.
+export const editElectionFieldsSchema = z.object(electionFieldsShape).refine(
+  (data) => new Date(data.end_time) > new Date(data.start_time),
+  {
+    message: 'End time must be after start time',
+    path: ['end_time'],
+  }
+)
+
+// Server-side validation for the updateElection action, where the id is
+// supplied by the caller alongside the form fields.
+export const updateElectionSchema = z.object({
+  ...electionFieldsShape,
   id: z.string().uuid('Invalid election ID'),
 }).refine(
   (data) => new Date(data.end_time) > new Date(data.start_time),
