@@ -9,6 +9,7 @@ import {
   type SubmitVoteInput,
 } from '@/lib/validations/voting'
 import { checkVotingEligibility, getElectionPositions } from '@/lib/supabase/voting-queries'
+import { sendVoteReceiptEmail } from '@/lib/email/send-vote-receipt'
 
 interface ActionResponse {
   success: boolean
@@ -174,6 +175,25 @@ export async function confirmAndStoreVotes(
       action: 'vote_cast',
       details: { vote_count: votes.length },
     })
+
+    // Email the receipt -- best-effort, never blocks the vote itself (it's
+    // already committed above by the time this runs).
+    if (user.email) {
+      const { data: election } = await supabase
+        .from('elections')
+        .select('title')
+        .eq('id', validatedInput.electionId)
+        .single()
+
+      await sendVoteReceiptEmail({
+        recipientEmail: user.email,
+        electionTitle: election?.title || 'Election',
+        receiptHash,
+        timestamp: receipt?.created_at || new Date().toISOString(),
+        voteCount: votes.length,
+        electionId: validatedInput.electionId,
+      })
+    }
 
     return {
       success: true,
